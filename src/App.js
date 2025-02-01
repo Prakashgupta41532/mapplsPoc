@@ -81,7 +81,7 @@
 // export default App;
 
 
-
+import axios from "axios";
 import { mappls } from "mappls-web-maps";
 import { useEffect, useRef, useState } from "react";
 
@@ -96,14 +96,15 @@ const App = () => {
 
   const MAP_AUTH_KEY = "30dc5b422dfc4891ecbb797004f32a6e";
   const REVERSE_GEOCODE_URL = "https://apis.mappls.com/advancedmaps/v1";
-  const AUTO_SUGGEST_URL = `https://apis.mappls.com/advancedmaps/v1/${MAP_AUTH_KEY}/autosuggest`;
+  const AUTO_SUGGEST_URL = `https://atlas.mappls.com/api/places/search/autosuggest`;
+  const ACCESS_TOKEN = "e2ab577f-1711-415b-8264-5ed4c59e0e9f";
 
   const loadObject = {
     map: true,
     layer: "raster",
     version: "3.0",
     libraries: ["polydraw"],
-    plugins: ["direction", "place_picker", "search"], // Ensure 'search' is included
+    plugins: ["direction", "place_picker", "search"],
   };
 
   useEffect(() => {
@@ -148,7 +149,7 @@ const App = () => {
 
   const getPlaceName = async (lat, lng) => {
     try {
-      const response = await fetch(
+      const response = await axios.get(
         `${REVERSE_GEOCODE_URL}/${MAP_AUTH_KEY}/rev_geocode?lat=${lat}&lng=${lng}`
       );
       const data = await response.json();
@@ -160,33 +161,42 @@ const App = () => {
   };
 
   const handleSearch = async (query) => {
-    if (!query) return;
-  
+    setSearchQuery(query);
+    if (!query || query.length < 2) {
+      setSuggestions([]);
+      return;
+    }
+
     try {
-      const response = await fetch(`${AUTO_SUGGEST_URL}?query=${query}`, {
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-  
+      const response = await fetch(
+        `${AUTO_SUGGEST_URL}?query=${encodeURIComponent(query)}&region=IND`, 
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${ACCESS_TOKEN}`,
+          },
+        }
+      );
+      console.log('=+++++++++++++++++', response);
+
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
-  
+
       const data = await response.json();
       console.log("Auto Suggest Response:", data);
-  
-      if (data.suggestedLocations) {
+
+      if (data.suggestedLocations && data.suggestedLocations.length > 0) {
         setSuggestions(data.suggestedLocations);
       } else {
-        console.warn("No suggestions found:", data);
         setSuggestions([]);
       }
     } catch (error) {
       console.error("Search Error:", error);
+      setSuggestions([]);
     }
   };
-  
 
   const handleSelectLocation = (location) => {
     setSearchQuery(location.placeName);
